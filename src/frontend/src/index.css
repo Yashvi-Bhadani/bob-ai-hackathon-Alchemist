@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0f1117;
+  color: #e6edf3;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f1117; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #58a6ff; }
+
+/* Risk tier badge helpers */
+.badge-green    { @apply bg-green-900/40 text-green-400 border border-green-700/60; }
+.badge-amber    { @apply bg-yellow-900/40 text-yellow-400 border border-yellow-700/60; }
+.badge-red      { @apply bg-red-900/40 text-red-400 border border-red-700/60; }
+.badge-critical { @apply bg-red-900/60 text-red-300 border border-red-500/80; }
+
+.score-bar-bg { @apply bg-gray-800 rounded-full h-1.5 w-full; }
+.score-bar-fill { @apply h-1.5 rounded-full transition-all duration-500; }
