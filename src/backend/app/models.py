@@ -9,28 +9,76 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 
-# ── Bottleneck ─────────────────────────────────────────────────────────────────
+# ── Bottleneck (Member 1) ──────────────────────────────────────────────────────
 
-class BottleneckResult(BaseModel):
+class HistoryPoint(BaseModel):
+    """Single snapshot data point in the bottleneck history trend."""
+    snapshot_time: str
+    wip_units: Optional[int] = None
+    utilization: Optional[float] = None
+
+
+class BottleneckAssessment(BaseModel):
+    """
+    Full bottleneck assessment for a single tool.
+    Returned by GET /api/v1/bottleneck/bottlenecks/{tool_id}.
+    Member 3 should use this as the primary integration payload.
+    """
     tool_id: str
     tool_name: str
-    process_step: str
+    process_id: int
+    process_name: str
+    tool_type: str
+    status: str
+    compatible_products: List[str] = []
+
+    # Score inputs
+    utilization: float = Field(..., ge=0, le=1, description="Ratio 0–1")
     utilization_pct: float = Field(..., ge=0, le=100)
-    wip_lots: int = Field(..., ge=0)
-    downtime_hrs: float = Field(..., ge=0)
-    wip_pressure: float = Field(..., ge=0, le=1)
+    wip_units: int = Field(..., ge=0)
+    normal_wip: float = Field(..., ge=0)
+    wip_pressure_raw: float = Field(..., ge=0, description="Raw ratio; can exceed 1")
+    wip_pressure_normalized: float = Field(..., ge=0, le=1)
     capacity_pressure: float = Field(..., ge=0, le=1)
-    bottleneck_score: float = Field(..., ge=0, le=1)
-    is_critical: bool
+    downtime_hours: float = Field(..., ge=0)
+    downtime_pct: float = Field(..., ge=0, le=1)
+
+    # Score outputs
+    bottleneck_score: float = Field(..., ge=0, le=100, description="Composite score 0–100")
+    severity: str = Field(..., description="LOW | MEDIUM | HIGH | CRITICAL")
+    is_bottleneck: bool
+
+    # Confidence
+    confidence: float = Field(..., ge=0, le=1)
+    low_confidence: bool
+    snapshot_count: int
+    wip_trend: str = Field(..., description="RISING | STABLE | FALLING | UNKNOWN")
+    wip_cov: Optional[float] = None
+
+    # Little's Law reference only
+    cycle_time_estimate_hrs: Optional[float] = None
+    cycle_time_note: str = ""
+
+    # History
+    history: List[HistoryPoint] = []
 
 
 class BottleneckListResponse(BaseModel):
-    tools: List[BottleneckResult]
+    bottlenecks: List[dict]       # dict form (BottleneckAssessment without history)
+    count: int
     critical_count: int
     most_critical_tool_id: Optional[str] = None
 
 
-# ── Outage Simulation ──────────────────────────────────────────────────────────
+class BacklogRecoveryResult(BaseModel):
+    """Structured result from the backlog/recovery calculation (Member 3 integration)."""
+    backlog_added: float
+    net_clearance_rate: float
+    recovery_time_hours: Optional[float] = None
+    recoverable: bool
+
+
+# ── Downstream Impact (Member 3 owned, kept here for shared use) ───────────────
 
 class DownstreamImpactItem(BaseModel):
     affected_step: str
@@ -51,6 +99,9 @@ class OutageSimulationResult(BaseModel):
     is_recoverable: bool
     downstream_impact: List[DownstreamImpactItem] = []
     simulation_note: Optional[str] = None
+
+# Legacy alias kept so Member 2/3 code that references BottleneckResult still imports
+BottleneckResult = BottleneckAssessment
 
 
 # ── Supply Chain ───────────────────────────────────────────────────────────────

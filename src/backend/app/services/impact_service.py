@@ -209,16 +209,25 @@ async def get_combined_risk(
     """
     Full combined risk assessment for a given tool.
     Optionally incorporates an outage scenario.
+
+    Uses the new Member-1 bottleneck API (score is now 0–100).
+    Manufacturing risk is normalised to 0–1 by dividing by 100.
     """
-    # 1. Manufacturing risk
-    all_scores = await bottleneck_service.get_all_tool_scores()
-    tool_score = next((s for s in all_scores if s.tool_id == tool_id), None)
-    if tool_score is None:
+    from app.services.bottleneck.queries import get_tool, get_snapshots
+    from app.api.bottlenecks import _full_assessment
+
+    # 1. Manufacturing risk via new bottleneck service
+    tool_data = await get_tool(tool_id)
+    if tool_data is None:
         raise ValueError(f"Tool '{tool_id}' not found.")
+    snaps = await get_snapshots(tool_id)
+    assessment = _full_assessment(tool_data, snaps)
 
-    mfg_risk = tool_score.bottleneck_score
+    # Normalise 0–100 score → 0–1 ratio for combined formula
+    mfg_risk = round(assessment["bottleneck_score"] / 100.0, 4)
+    is_critical = assessment["severity"] == "CRITICAL"
 
-    # 2. Outage simulation (if requested)
+    # 2. Outage simulation (if requested) — still use the standalone function
     outage_result = None
     recovery_hours: float | None = None
     if outage_hours and outage_hours > 0:
@@ -247,9 +256,9 @@ async def get_combined_risk(
     # 5. Recommendations
     recommendations = _build_recommendations(
         tool_id=tool_id,
-        tool_name=tool_score.tool_name,
-        bottleneck_score=tool_score.bottleneck_score,
-        is_critical_bottleneck=tool_score.is_critical,
+        tool_name=assessment["tool_name"],
+        bottleneck_score=assessment["bottleneck_score"],
+        is_critical_bottleneck=is_critical,
         outage_hours=outage_hours,
         recovery_hours=recovery_hours,
         supply_risk=supply_risk_obj,
@@ -261,14 +270,14 @@ async def get_combined_risk(
 
     return CombinedRiskResult(
         tool_id=tool_id,
-        tool_name=tool_score.tool_name,
-        process_step=tool_score.process_step,
+        tool_name=assessment["tool_name"],
+        process_step=assessment.get("process_name", ""),
         manufacturing_risk_score=round(mfg_risk, 4),
         supply_chain_risk_score=round(sc_risk, 4),
         combined_risk_score=combined,
         risk_tier=risk_tier,
         risk_tier_label=_RISK_TIER_LABEL[risk_tier],
-        confidence_pct=82,
+        confidence_pct=round(assessment.get("confidence", 0.80) * 100),
         primary_material_id=material_id,
         outage_simulation=outage_result,
         supply_risk=supply_risk_obj,
