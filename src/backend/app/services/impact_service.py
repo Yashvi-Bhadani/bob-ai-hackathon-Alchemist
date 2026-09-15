@@ -231,12 +231,17 @@ async def get_combined_risk(
     outage_result = None
     recovery_hours: float | None = None
     if outage_hours and outage_hours > 0:
-        outage_result = await bottleneck_service.simulate_tool_outage(tool_id, outage_hours)
-        recovery_hours = outage_result.recovery_hours
-        # Outage increases manufacturing risk proportionally to recovery time
-        if recovery_hours:
-            outage_factor = min(1.0, recovery_hours / 24.0)
-            mfg_risk = min(1.0, mfg_risk + 0.2 * outage_factor)
+        try:
+            outage_result = await bottleneck_service.simulate_tool_outage(tool_id, outage_hours)
+            recovery_hours = outage_result.recovery_hours
+            # Outage increases manufacturing risk proportionally to recovery time
+            if recovery_hours:
+                outage_factor = min(1.0, recovery_hours / 24.0)
+                mfg_risk = min(1.0, mfg_risk + 0.2 * outage_factor)
+        except Exception:
+            # Outage simulation failure is non-fatal; return base assessment without outage data
+            outage_result = None
+            recovery_hours = None
 
     # 3. Supply chain risk for primary material
     material_id = _TOOL_PRIMARY_MATERIAL.get(tool_id)

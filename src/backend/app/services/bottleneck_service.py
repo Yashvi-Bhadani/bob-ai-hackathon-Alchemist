@@ -80,24 +80,27 @@ _DEMO_TOOLS: list[dict] = [
 
 
 async def _get_tool_data() -> list[dict]:
-    """Fetch live data; fall back to demo constants if DB unavailable."""
-    rows = await db.fetch_rows(
-        """
-        SELECT ft.tool_id, ft.tool_name, ft.process_step,
-               ft.max_capacity_wph, ft.mttr_hours,
-               tu.utilization_pct, tu.wip_lots, tu.downtime_hrs, tu.throughput_wph
-        FROM fab_tools ft
-        LEFT JOIN LATERAL (
-            SELECT utilization_pct, wip_lots, downtime_hrs, throughput_wph
-            FROM tool_utilization
-            WHERE tool_id = ft.tool_id
-            ORDER BY snapshot_time DESC
-            LIMIT 1
-        ) tu ON TRUE
-        WHERE ft.is_active = TRUE
-        ORDER BY ft.tool_id
-        """
-    )
+    """Fetch live data; fall back to demo constants if DB unavailable or schema mismatch."""
+    try:
+        rows = await db.fetch_rows(
+            """
+            SELECT ft.tool_id, ft.tool_name, ft.process_step,
+                   ft.max_capacity_wph, ft.mttr_hours,
+                   tu.utilization_pct, tu.wip_lots, tu.downtime_hrs, tu.throughput_wph
+            FROM fab_tools ft
+            LEFT JOIN LATERAL (
+                SELECT utilization_pct, wip_lots, downtime_hrs, throughput_wph
+                FROM tool_utilization
+                WHERE tool_id = ft.tool_id
+                ORDER BY snapshot_time DESC
+                LIMIT 1
+            ) tu ON TRUE
+            WHERE ft.is_active = TRUE
+            ORDER BY ft.tool_id
+            """
+        )
+    except Exception:
+        return _DEMO_TOOLS
     if rows:
         return rows
     return _DEMO_TOOLS
