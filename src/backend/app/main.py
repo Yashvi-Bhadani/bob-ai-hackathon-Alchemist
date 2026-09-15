@@ -47,12 +47,19 @@ app = FastAPI(
 )
 
 # ── CORS ────────────────────────────────────────────────────────────────────────
-_allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+# Default list includes the production Vercel frontend and common local dev origins.
+# Override at runtime by setting the ALLOWED_ORIGINS env var (comma-separated).
+_default_origins = (
+    "https://fab-risk-advisor.vercel.app,"
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173"
+)
+_allowed_origins = os.getenv("ALLOWED_ORIGINS", _default_origins).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
