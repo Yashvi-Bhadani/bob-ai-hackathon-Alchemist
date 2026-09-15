@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from './api'
 import type { BottleneckListResponse, CombinedRiskResult } from './types'
 import { BottleneckPanel } from './components/BottleneckPanel'
@@ -7,6 +8,7 @@ import { SupplyRiskPanel } from './components/SupplyRiskPanel'
 import { BobNarrationPanel } from './components/BobNarrationPanel'
 import { CombinedRiskSummary } from './components/CombinedRiskSummary'
 import { StatusBar } from './components/StatusBar'
+import { NavBar } from './components/NavBar'
 
 const DEFAULT_TOOL = 'LITH-07'
 
@@ -43,80 +45,95 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-surface text-gray-200">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="border-b border-border bg-panel px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-          <span className="text-accent font-semibold tracking-wider text-sm uppercase">
-            Fab Bottleneck &amp; Supply Chain Risk Advisor
-          </span>
-          <span className="text-muted text-xs border border-border rounded px-2 py-0.5">
-            ⚠ DEMO / SYNTHETIC DATA
-          </span>
-        </div>
-        <div className="flex items-center gap-4 text-xs text-muted">
-          <span>IBM Bob AI Integration</span>
-          <span className={`w-2 h-2 rounded-full ${combinedRisk ? 'bg-success' : 'bg-warning'}`} />
-        </div>
-      </header>
+      <NavBar />
 
       {/* ── Main Layout ────────────────────────────────────────────────────── */}
-      <div className="max-w-screen-2xl mx-auto p-4 grid gap-4"
-           style={{ gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: 'auto auto auto' }}>
+      <div className="max-w-screen-2xl mx-auto p-4 flex flex-col gap-4">
 
-        {/* Row 1: Status bar full width */}
-        <div className="col-span-3">
-          <StatusBar
-            criticalCount={bottleneckData?.critical_count ?? 0}
-            mostCritical={bottleneckData?.most_critical_tool_id ?? null}
-            combinedRisk={combinedRisk}
-            loading={loading}
-          />
-          {error && (
-            <div className="mt-2 p-2 bg-red-900/30 border border-red-700/60 rounded text-red-400 text-xs">
-              ⚠ {error} — Running in demo mode with synthetic data.
-            </div>
+        {/* Status bar */}
+        <StatusBar
+          criticalCount={bottleneckData?.critical_count ?? 0}
+          mostCritical={bottleneckData?.most_critical_tool_id ?? null}
+          combinedRisk={combinedRisk}
+          bottleneckData={bottleneckData}
+          loading={loading}
+        />
+
+        {error && (
+          <div className="p-2 bg-red-900/30 border border-red-700/60 rounded text-red-400 text-xs">
+            ⚠ {error} — Running in demo mode with synthetic data.
+          </div>
+        )}
+
+        {/* Quick-access action bar */}
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-muted">Quick actions:</span>
+          <Link
+            to="/simulator"
+            className="border border-accent bg-accent/10 text-accent rounded px-3 py-1 hover:bg-accent/20 transition-colors font-mono"
+          >
+            ▶ Open Simulator
+          </Link>
+          {selectedTool && (
+            <Link
+              to={`/bottlenecks/${selectedTool}`}
+              className="border border-border text-muted rounded px-3 py-1 hover:border-gray-500 hover:text-gray-300 transition-colors font-mono"
+            >
+              📊 Detail: {selectedTool}
+            </Link>
+          )}
+          {combinedRisk?.primary_material_id && (
+            <Link
+              to={`/supply-risk/${combinedRisk.primary_material_id}`}
+              className="border border-border text-muted rounded px-3 py-1 hover:border-gray-500 hover:text-gray-300 transition-colors font-mono"
+            >
+              🏭 Supply: {combinedRisk.primary_material_id}
+            </Link>
           )}
         </div>
 
-        {/* Row 2 Col 1: Bottleneck Panel */}
-        <div className="col-span-1 row-span-2">
-          <BottleneckPanel
-            data={bottleneckData}
-            selectedTool={selectedTool}
-            onSelectTool={setSelectedTool}
-          />
-        </div>
+        {/* Main 3-column grid */}
+        <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
 
-        {/* Row 2 Col 2: Outage Simulator */}
-        <div className="col-span-1">
-          <OutageSimulator
-            selectedTool={selectedTool}
-            outageHours={outageHours}
-            outageResult={combinedRisk?.outage_simulation ?? null}
-            onChangeHours={setOutageHours}
-            onRunOutage={setRunOutage}
-            isRunning={runOutage}
-          />
-        </div>
+          {/* Col 1 (rows 1–2): Bottleneck Panel */}
+          <div className="row-span-2">
+            <BottleneckPanel
+              data={bottleneckData}
+              selectedTool={selectedTool}
+              onSelectTool={setSelectedTool}
+            />
+          </div>
 
-        {/* Row 2 Col 3: Supply Risk Panel */}
-        <div className="col-span-1">
-          <SupplyRiskPanel combinedRisk={combinedRisk} />
-        </div>
+          {/* Col 2 Row 1: Outage Simulator */}
+          <div>
+            <OutageSimulator
+              selectedTool={selectedTool}
+              outageHours={outageHours}
+              outageResult={combinedRisk?.outage_simulation ?? null}
+              onChangeHours={setOutageHours}
+              onRunOutage={setRunOutage}
+              isRunning={runOutage}
+            />
+          </div>
 
-        {/* Row 3 Col 2+3: Combined Risk Summary */}
-        <div className="col-span-2">
-          <CombinedRiskSummary combinedRisk={combinedRisk} loading={loading} />
-        </div>
+          {/* Col 3 Row 1: Supply Risk Panel */}
+          <div>
+            <SupplyRiskPanel combinedRisk={combinedRisk} />
+          </div>
 
-        {/* Row 3 full width: Bob Narration */}
-        <div className="col-span-3">
-          <BobNarrationPanel
-            combinedRisk={combinedRisk}
-            selectedTool={selectedTool}
-            outageHours={runOutage ? outageHours : undefined}
-          />
+          {/* Col 2+3 Row 2: Combined Risk Summary */}
+          <div className="col-span-2">
+            <CombinedRiskSummary combinedRisk={combinedRisk} loading={loading} />
+          </div>
+
+          {/* Col 1-3 Row 3: Bob Narration */}
+          <div className="col-span-3">
+            <BobNarrationPanel
+              combinedRisk={combinedRisk}
+              selectedTool={selectedTool}
+              outageHours={runOutage ? outageHours : undefined}
+            />
+          </div>
         </div>
       </div>
 

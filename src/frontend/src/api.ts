@@ -1,12 +1,25 @@
 /**
  * API service layer — typed wrappers around all backend endpoints.
  * Base URL comes from VITE_API_BASE_URL env var, defaulting to /api/v1 (proxied).
+ *
+ * Backend URL layout:
+ *   /api/v1/bottleneck/tools
+ *   /api/v1/bottleneck/processes
+ *   /api/v1/bottleneck/wip
+ *   /api/v1/bottleneck/bottlenecks
+ *   /api/v1/bottleneck/bottlenecks/{tool_id}
+ *   /api/v1/supply/hhi
+ *   /api/v1/supply/spof
+ *   /api/v1/supply/inventory
+ *   /api/v1/supply/geopolitical
+ *   /api/v1/supply/material/{material_id}
+ *   /api/v1/impact/{tool_id}?outage_hours=N
+ *   /api/v1/narration/  (POST)
  */
 
 import type {
   BottleneckListResponse,
-  BottleneckResult,
-  OutageSimulationResult,
+  BottleneckAssessment,
   HHIResult,
   SPOFResult,
   InventoryCoverageResult,
@@ -40,15 +53,16 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// ── Bottleneck ─────────────────────────────────────────────────────────────────
+// ── Bottleneck (new module, score 0–100) ──────────────────────────────────────
 export const api = {
   bottleneck: {
-    getAll: () => get<BottleneckListResponse>('/bottleneck/'),
-    getTool: (toolId: string) => get<BottleneckResult>(`/bottleneck/${toolId}`),
-    simulateOutage: (toolId: string, outageHours: number) =>
-      get<OutageSimulationResult>(
-        `/bottleneck/simulate-outage?tool_id=${encodeURIComponent(toolId)}&outage_hours=${outageHours}`
-      ),
+    // Returns { bottlenecks: BottleneckAssessment[], count, critical_count, most_critical_tool_id }
+    getAll: () => get<BottleneckListResponse>('/bottleneck/bottlenecks'),
+    // Returns full BottleneckAssessment including history[]
+    getTool: (toolId: string) => get<BottleneckAssessment>(`/bottleneck/bottlenecks/${encodeURIComponent(toolId)}`),
+    getTools: () => get<{ tools: BottleneckAssessment[]; count: number }>('/bottleneck/tools'),
+    getProcesses: () => get<{ processes: Array<{ process_id: number; process_name: string; process_sequence: number; next_process_id: number | null }>; count: number }>('/bottleneck/processes'),
+    getWip: () => get<{ lots: Array<Record<string, unknown>>; count: number; total_wafers: number }>('/bottleneck/wip'),
   },
 
   supply: {
@@ -61,10 +75,11 @@ export const api = {
   },
 
   impact: {
+    // GET /api/v1/impact/{tool_id}?outage_hours=N
     getCombined: (toolId: string, outageHours?: number) => {
       const url = outageHours
-        ? `/impact/${toolId}?outage_hours=${outageHours}`
-        : `/impact/${toolId}`
+        ? `/impact/${encodeURIComponent(toolId)}?outage_hours=${outageHours}`
+        : `/impact/${encodeURIComponent(toolId)}`
       return get<CombinedRiskResult>(url)
     },
   },

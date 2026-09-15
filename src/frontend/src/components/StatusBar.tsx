@@ -1,9 +1,11 @@
-import type { CombinedRiskResult } from '../types'
+import type { CombinedRiskResult, BottleneckListResponse } from '../types'
 
 interface Props {
   criticalCount: number
+  highCount?: number
   mostCritical: string | null
   combinedRisk: CombinedRiskResult | null
+  bottleneckData: BottleneckListResponse | null
   loading: boolean
 }
 
@@ -14,26 +16,35 @@ const TIER_COLORS: Record<string, string> = {
   CRITICAL: '#f85149',
 }
 
-export function StatusBar({ criticalCount, mostCritical, combinedRisk, loading }: Props) {
+export function StatusBar({ criticalCount, highCount = 0, mostCritical, combinedRisk, bottleneckData, loading }: Props) {
   const tier = combinedRisk?.risk_tier ?? 'GREEN'
   const tierColor = TIER_COLORS[tier] ?? '#58a6ff'
+  const spofCount = bottleneckData?.bottlenecks?.filter(b => b.is_bottleneck).length ?? 0
 
   return (
     <div className="bg-panel border border-border rounded-lg px-4 py-2 flex items-center gap-6 text-xs overflow-x-auto">
       {/* System status */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
-        <span className="text-muted">{loading ? 'UPDATING…' : 'LIVE'}</span>
+        <span className="text-muted font-mono">{loading ? 'UPDATING…' : 'LIVE'}</span>
       </div>
 
       <div className="h-4 w-px bg-border" />
 
-      {/* Critical bottlenecks */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="text-muted">Critical Bottlenecks:</span>
-        <span className={`font-mono font-bold ${criticalCount > 0 ? 'text-red-400' : 'text-green-400'}`}>
-          {criticalCount}
-        </span>
+      {/* Tool counts */}
+      <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-muted">Critical:</span>
+          <span className={`font-mono font-bold ${criticalCount > 0 ? 'text-red-400' : 'text-green-400'}`}>
+            {criticalCount}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted">Bottlenecks:</span>
+          <span className={`font-mono font-bold ${spofCount > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+            {spofCount}
+          </span>
+        </div>
         {mostCritical && (
           <span className="font-mono text-red-400 border border-red-700/60 bg-red-900/20 px-1.5 py-0.5 rounded">
             ● {mostCritical}

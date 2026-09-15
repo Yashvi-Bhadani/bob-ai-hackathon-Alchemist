@@ -34,7 +34,7 @@ export function BobNarrationPanel({ combinedRisk, selectedTool, outageHours }: P
             tool_id: combinedRisk.tool_id,
             tool_name: combinedRisk.tool_name,
             process_step: combinedRisk.process_step,
-            utilization_pct: 0,
+            utilization_pct: Math.round(combinedRisk.manufacturing_risk_score * 100),
             wip_lots: 0,
             bottleneck_score: combinedRisk.manufacturing_risk_score,
             is_critical: combinedRisk.risk_tier === 'CRITICAL' || combinedRisk.risk_tier === 'RED',

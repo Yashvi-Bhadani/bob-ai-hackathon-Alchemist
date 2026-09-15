@@ -1,24 +1,92 @@
 // ─── API Response Types ────────────────────────────────────────────────────────
-// Mirror Python Pydantic models exactly.
+// Mirror Python Pydantic models exactly (new bottleneck module + supply + impact).
 
-export interface BottleneckResult {
-  tool_id: string
-  tool_name: string
-  process_step: string
-  utilization_pct: number
-  wip_lots: number
-  downtime_hrs: number
-  wip_pressure: number
-  capacity_pressure: number
-  bottleneck_score: number
-  is_critical: boolean
+// ── Bottleneck (new Member 1 module, score 0–100) ────────────────────────────
+
+export interface HistoryPoint {
+  snapshot_time: string
+  wip_units: number | null
+  utilization: number | null
 }
 
+export interface BottleneckAssessment {
+  tool_id: string
+  tool_name: string
+  process_id: number
+  process_name: string
+  tool_type: string
+  status: string
+  compatible_products: string[]
+  // Score inputs
+  utilization: number          // ratio 0–1
+  utilization_pct: number      // 0–100
+  wip_units: number
+  normal_wip: number
+  wip_pressure_raw: number
+  wip_pressure_normalized: number
+  capacity_pressure: number
+  downtime_hours: number
+  downtime_pct: number
+  // Score outputs
+  bottleneck_score: number     // 0–100
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  is_bottleneck: boolean
+  // Confidence
+  confidence: number
+  low_confidence: boolean
+  snapshot_count: number
+  wip_trend: 'RISING' | 'STABLE' | 'FALLING' | 'UNKNOWN'
+  wip_cov: number | null
+  // Little's law (reference only)
+  cycle_time_estimate_hrs: number | null
+  cycle_time_note: string
+  // History
+  history: HistoryPoint[]
+}
+
+// Alias used by bottleneck list (no history, same shape)
+export type BottleneckResult = BottleneckAssessment
+
 export interface BottleneckListResponse {
-  tools: BottleneckResult[]
+  bottlenecks: BottleneckAssessment[]
+  count: number
   critical_count: number
   most_critical_tool_id: string | null
 }
+
+// ── WIP ─────────────────────────────────────────────────────────────────────
+
+export interface WipLot {
+  lot_id: string
+  product_id: string
+  process_id: number
+  tool_id: string | null
+  quantity: number
+  priority: number
+  status: string
+}
+
+export interface WipResponse {
+  lots: WipLot[]
+  count: number
+  total_wafers: number
+}
+
+// ── Process ──────────────────────────────────────────────────────────────────
+
+export interface FabProcess {
+  process_id: number
+  process_name: string
+  process_sequence: number
+  next_process_id: number | null
+}
+
+export interface ProcessListResponse {
+  processes: FabProcess[]
+  count: number
+}
+
+// ── Downstream Impact ────────────────────────────────────────────────────────
 
 export interface DownstreamImpactItem {
   affected_step: string
@@ -40,6 +108,8 @@ export interface OutageSimulationResult {
   downstream_impact: DownstreamImpactItem[]
   simulation_note: string | null
 }
+
+// ── Supply Chain ─────────────────────────────────────────────────────────────
 
 export interface HHIResult {
   material_id: string
@@ -99,6 +169,8 @@ export interface MaterialSupplyRisk {
   risk_tier: 'GREEN' | 'AMBER' | 'RED' | 'CRITICAL'
 }
 
+// ── Impact & Combined Risk ────────────────────────────────────────────────────
+
 export interface MitigationRecommendation {
   priority: number
   category: 'TOOL' | 'SCHEDULE' | 'INVENTORY' | 'SUPPLIER' | 'OTHER'
@@ -122,6 +194,8 @@ export interface CombinedRiskResult {
   supply_risk: MaterialSupplyRisk | null
   recommendations: MitigationRecommendation[]
 }
+
+// ── Bob Narration ─────────────────────────────────────────────────────────────
 
 export interface NarrationResponse {
   context_type: string
